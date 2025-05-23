@@ -1,0 +1,73 @@
+// example-usage.ts
+// Example script showing how to interact with the Vietnam Rental Assistant
+
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+class VietnamRentalExample {
+  private client: Client;
+
+  constructor() {
+    this.client = new Client(
+      {
+        name: 'vietnam-rental-example',
+        version: '1.0.0',
+      },
+      {
+        capabilities: {},
+      }
+    );
+  }
+
+  async connect() {
+    // Connect to the MCP server
+    const transport = new StdioClientTransport({
+      command: 'node',
+      args: ['dist/index.js'],
+    });
+    
+    await this.client.connect(transport);
+    console.log('Connected to Vietnam Rental Assistant MCP Server');
+  }
+
+  async exampleRentalSearch() {
+    console.log('\n🔍 Example 1: Searching for rentals in Da Nang...\n');
+    
+    const result = await this.client.callTool({
+      name: 'search_rentals',
+      arguments: {
+        city: 'Da Nang',
+        startDate: '2024-06-15',
+        endDate: '2024-06-20',
+        budget: '150000',
+        bikeType: 'scooter'
+      }
+    });
+    
+    console.log('Nam says:', result.content[0].text);
+  }
+
+  async exampleNegotiation() {
+    console.log('\n💰 Example 2: Negotiating price with a rental shop...\n');
+    
+    const result = await this.client.callTool({
+      name: 'negotiate_price',
+      arguments: {
+        shopName: 'Thanh Xe Tốt',
+        currentPrice: '180000',
+        targetPrice: '150000',
+        days: 5
+      }
+    });
+    
+    console.log('Negotiation result:', result.content[0].text);
+  }
+
+  async exampleBooking() {
+    console.log('\n📋 Example 3: Booking a rental...\n');
+    
+    const result = await this.client.callTool({
+      name: 'book_rental',
+      arguments: {
+        shopName: 'Thanh Xe Tốt',
+        bikeModel
