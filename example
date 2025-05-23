@@ -70,4 +70,186 @@ class VietnamRentalExample {
       name: 'book_rental',
       arguments: {
         shopName: 'Thanh Xe Tốt',
-        bikeModel
+        bikeModel: 'Honda Vision',
+        startDate: '2024-06-15',
+        endDate: '2024-06-20',
+        customerName: 'John Smith',
+        deliveryAddress: 'Fusion Suites Da Nang Beach, 28 Vo Nguyen Giap'
+      }
+    });
+    
+    console.log('Booking confirmation:', result.content[0].text);
+  }
+
+  async exampleLocalTips() {
+    console.log('\n💡 Example 4: Getting local traffic tips...\n');
+    
+    const result = await this.client.callTool({
+      name: 'get_local_tips',
+      arguments: {
+        city: 'Da Nang',
+        topic: 'traffic'
+      }
+    });
+    
+    console.log('Local advice:', result.content[0].text);
+  }
+
+  async exampleCompleteFlow() {
+    console.log('\n🎯 Example 5: Complete rental flow simulation...\n');
+    
+    // Step 1: Customer asks for help
+    console.log('Customer: "Hi! I need to rent a scooter in Ho Chi Minh City for 3 days"');
+    
+    // Step 2: Search available options
+    const searchResult = await this.client.callTool({
+      name: 'search_rentals',
+      arguments: {
+        city: 'Ho Chi Minh City',
+        startDate: '2024-07-01',
+        endDate: '2024-07-03',
+        budget: '200000',
+        bikeType: 'scooter'
+      }
+    });
+    
+    console.log('\nNam responds with options...');
+    
+    // Step 3: Customer wants to negotiate
+    console.log('\nCustomer: "Can you try to get a better price on the Yamaha Exciter?"');
+    
+    const negotiationResult = await this.client.callTool({
+      name: 'negotiate_price',
+      arguments: {
+        shopName: 'Saigon Motorbike Rental',
+        currentPrice: '200000',
+        targetPrice: '170000',
+        days: 3
+      }
+    });
+    
+    console.log('Nam negotiates:', negotiationResult.content[0].text);
+    
+    // Step 4: Book the rental
+    console.log('\nCustomer: "Great! Let\'s book it"');
+    
+    const bookingResult = await this.client.callTool({
+      name: 'book_rental',
+      arguments: {
+        shopName: 'Saigon Motorbike Rental',
+        bikeModel: 'Yamaha Exciter',
+        startDate: '2024-07-01',
+        endDate: '2024-07-03',
+        customerName: 'Sarah Johnson',
+        deliveryAddress: 'Park Hyatt Saigon, District 1'
+      }
+    });
+    
+    console.log('Booking completed:', bookingResult.content[0].text);
+    
+    // Step 5: Get safety tips
+    console.log('\nCustomer: "Any safety tips for riding in Saigon?"');
+    
+    const tipsResult = await this.client.callTool({
+      name: 'get_local_tips',
+      arguments: {
+        city: 'Ho Chi Minh City',
+        topic: 'safety'
+      }
+    });
+    
+    console.log('Safety advice:', tipsResult.content[0].text);
+  }
+
+  async runAllExamples() {
+    try {
+      await this.connect();
+      
+      await this.exampleRentalSearch();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await this.exampleNegotiation();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await this.exampleBooking();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await this.exampleLocalTips();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await this.exampleCompleteFlow();
+      
+      console.log('\n✅ All examples completed successfully!');
+      
+    } catch (error) {
+      console.error('Error running examples:', error);
+    }
+  }
+}
+
+// Test different scenarios
+class RentalScenarios {
+  
+  static budgetBackpacker() {
+    return {
+      profile: "Budget backpacker",
+      city: "Hanoi",
+      budget: "120000",
+      duration: 7,
+      bikeType: "scooter",
+      priorities: ["cheapest option", "basic but reliable", "helmet included"]
+    };
+  }
+
+  static luxuryTourist() {
+    return {
+      profile: "Luxury tourist",
+      city: "Da Nang",
+      budget: "300000",
+      duration: 3,
+      bikeType: "motorbike",
+      priorities: ["premium bikes", "hotel delivery", "full insurance"]
+    };
+  }
+
+  static digitalNomad() {
+    return {
+      profile: "Digital nomad",
+      city: "Ho Chi Minh City",
+      budget: "180000",
+      duration: 30,
+      bikeType: "automatic",
+      priorities: ["monthly discount", "reliable for daily use", "maintenance included"]
+    };
+  }
+
+  static adventureRider() {
+    return {
+      profile: "Adventure rider",
+      city: "Da Nang",
+      budget: "250000",
+      duration: 5,
+      bikeType: "motorbike",
+      priorities: ["powerful engine", "good for mountain roads", "Hai Van Pass capable"]
+    };
+  }
+}
+
+// Message templates for different scenarios
+const scenarioMessages = {
+  firstTime: "Hi! I'm visiting Vietnam for the first time and need help renting a scooter. I'm a bit nervous about the traffic but really want to explore on my own.",
+  
+  experienced: "Hey Nam! I've rented bikes in Thailand before. Looking for something reliable in HCMC for my 2-week stay. What's the best bang for buck?",
+  
+  family: "We're a family with teenagers. Need 2-3 scooters for a week in Da Nang. Safety is our top priority. Any family-friendly rental places?",
+  
+  business: "I'm here on business and need a professional-looking scooter for client meetings around District 1. Something clean and reliable for 5 days.",
+  
+  adventure: "Planning to ride from Da Nang to Hoi An and maybe up to Hue. Need a bike that can handle longer distances and some hills. Any recommendations?"
+};
+
+// Run examples if this file is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const example = new VietnamRentalExample();
+  example.runAllExamples();
+}
