@@ -34,7 +34,7 @@ class RentalError extends Error {
 // Fixed interface definitions with proper types
 interface BikeModel {
   model: string;
-  pricePerDay: number; // Changed from string to number for calculations
+  pricePerDay: number;
   photo?: string;
   available: boolean;
   engine?: string;
@@ -334,7 +334,7 @@ class VietnamRentalAssistant {
         let totalPriceStr = "";
         
         if (days && bike.available) {
-          const totalPrice = calculateTotalPrice(bike.pricePerDay, days, 10); // Assume 10% discount for calculation
+          const totalPrice = calculateTotalPrice(bike.pricePerDay, days, 10);
           totalPriceStr = ` (${days} days: ${formatPrice(totalPrice)})`;
         }
         
@@ -411,7 +411,7 @@ class VietnamRentalAssistant {
     }
 
     const days = calculateDays(startDate, endDate);
-    const totalPrice = calculateTotalPrice(selectedBike.pricePerDay, days, 10); // 10% discount for 3+ days
+    const totalPrice = calculateTotalPrice(selectedBike.pricePerDay, days, 10);
     
     return {
       shop: rental.shop,
@@ -430,7 +430,7 @@ class VietnamRentalAssistant {
     };
   }
 
-  // Get localized tips with more content
+  // Get localized tips with complete content
   getLocalTips(city: string, topic?: string): string {
     const tips: Record<string, Record<string, string>> = {
       'Da Nang': {
@@ -443,3 +443,305 @@ class VietnamRentalAssistant {
       },
       'Ho Chi Minh City': {
         traffic: "Crazy traffic! Follow the flow, don't stop suddenly. Peak hours are nightmare: 7-9 AM, 5-8 PM. Use Grab bike lanes when possible.",
+        parking: "Pay parking everywhere (3-5k VND). Don't park illegally - they'll clamp your wheel. District 1 has expensive parking, try side streets.",
+        fuel: "24/7 petrol stations available. Slightly more expensive than other cities. Watch for fake petrol - stick to major brands.",
+        police: "Police checkpoints common, especially at night. Always carry license and passport. Traffic fines can be negotiated but don't offer bribes first.",
+        routes: "Avoid Nguyen Hue and Dong Khoi during rush hour. Use smaller alleys but watch for one-way streets. Ring roads are faster for long distances.",
+        safety: "Super busy traffic - stay alert! Pickpockets at red lights. Don't wear jewelry or flash phone. Rain makes roads very slippery."
+      },
+      'Hanoi': {
+        traffic: "Old Quarter is crazy narrow streets. Lots of one-ways and dead ends. Traffic is aggressive but slower speeds than HCMC.",
+        parking: "Street parking everywhere but watch for 'no parking' signs. Old Quarter gets expensive. Many coffee shops offer free parking.",
+        fuel: "Regular stations but some close early. Winter can affect bike performance - keep tank full. Cheaper than southern cities.",
+        police: "Stricter than south about helmets and licenses. Random checks common near tourist areas. Fines are fixed prices, don't negotiate.",
+        routes: "Ring roads bypass city center. Long Bien Bridge is scenic but windy. Avoid Old Quarter during festivals and weekends.",
+        safety: "Cold weather needs warm clothes. Rain is frequent - get good rain gear. Fog in winter reduces visibility significantly."
+      }
+    };
+
+    const cityTips = tips[city];
+    if (!cityTips) {
+      return `I don't have specific tips for ${city} yet. Stick to the main cities: Da Nang, Ho Chi Minh City, or Hanoi for the best local advice!`;
+    }
+
+    if (topic && cityTips[topic]) {
+      return `💡 **${topic.charAt(0).toUpperCase() + topic.slice(1)} tips for ${city}:**\n\n${cityTips[topic]}`;
+    }
+
+    // Return all tips if no specific topic
+    let allTips = `💡 **Local tips for ${city}:**\n\n`;
+    Object.entries(cityTips).forEach(([key, value]) => {
+      allTips += `**${key.charAt(0).toUpperCase() + key.slice(1)}:** ${value}\n\n`;
+    });
+    
+    return allTips;
+  }
+}
+
+// Initialize the MCP server
+const server = new Server(
+  {
+    name: 'vietnam-rental-assistant',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+// Create assistant instance
+const assistant = new VietnamRentalAssistant();
+
+// List available tools
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: [
+      {
+        name: 'search_rentals',
+        description: 'Search for motorbike/scooter rentals in Vietnamese cities (Da Nang, Ho Chi Minh City, Hanoi)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            city: {
+              type: 'string',
+              description: 'City to search in',
+              enum: ['Da Nang', 'Ho Chi Minh City', 'Hanoi']
+            },
+            startDate: {
+              type: 'string',
+              description: 'Start date (YYYY-MM-DD format)',
+              pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+            },
+            endDate: {
+              type: 'string',
+              description: 'End date (YYYY-MM-DD format)',
+              pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+            },
+            budget: {
+              type: 'string',
+              description: 'Daily budget in Vietnamese Dong (VND)'
+            },
+            bikeType: {
+              type: 'string',
+              description: 'Type of bike preferred',
+              enum: ['scooter', 'motorbike', 'automatic', 'manual', 'any']
+            }
+          },
+          required: ['city']
+        }
+      },
+      {
+        name: 'negotiate_price',
+        description: 'Negotiate better prices with rental shops using local connections',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            shopName: {
+              type: 'string',
+              description: 'Name of the rental shop'
+            },
+            currentPrice: {
+              type: 'string',
+              description: 'Current daily price in VND'
+            },
+            targetPrice: {
+              type: 'string',
+              description: 'Desired daily price in VND'
+            },
+            days: {
+              type: 'number',
+              description: 'Number of rental days'
+            }
+          },
+          required: ['shopName', 'currentPrice', 'targetPrice', 'days']
+        }
+      },
+      {
+        name: 'book_rental',
+        description: 'Complete booking process with vendor coordination',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            shopName: {
+              type: 'string',
+              description: 'Name of the rental shop'
+            },
+            bikeModel: {
+              type: 'string',
+              description: 'Model of the bike to book'
+            },
+            startDate: {
+              type: 'string',
+              description: 'Start date (YYYY-MM-DD)',
+              pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+            },
+            endDate: {
+              type: 'string',
+              description: 'End date (YYYY-MM-DD)',
+              pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+            },
+            customerName: {
+              type: 'string',
+              description: 'Customer full name'
+            },
+            deliveryAddress: {
+              type: 'string',
+              description: 'Hotel or delivery address (optional)'
+            },
+            phoneNumber: {
+              type: 'string',
+              description: 'Customer phone number (optional)'
+            }
+          },
+          required: ['shopName', 'bikeModel', 'startDate', 'endDate', 'customerName']
+        }
+      },
+      {
+        name: 'get_local_tips',
+        description: 'Get authentic local advice for riding in Vietnam',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            city: {
+              type: 'string',
+              description: 'City to get tips for',
+              enum: ['Da Nang', 'Ho Chi Minh City', 'Hanoi']
+            },
+            topic: {
+              type: 'string',
+              description: 'Specific topic for advice',
+              enum: ['traffic', 'parking', 'fuel', 'police', 'routes', 'safety']
+            }
+          },
+          required: ['city']
+        }
+      }
+    ]
+  };
+});
+
+// Handle tool calls
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  try {
+    switch (request.params.name) {
+      case 'search_rentals': {
+        const { city, startDate, endDate, budget, bikeType } = request.params.arguments as any;
+        
+        // Validate required parameters
+        if (!city) {
+          throw new RentalError('City is required', 'MISSING_CITY');
+        }
+
+        // Validate dates if provided
+        if (startDate && endDate) {
+          validateDateRange(startDate, endDate);
+        }
+
+        const requirements = { budget, bikeType };
+        const options = await assistant.contactVendors(city, requirements);
+        
+        if (options.length === 0) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Hey! I checked with my contacts in ${city} but couldn't find anything matching your requirements. Try adjusting your budget or bike type, or let me know if you're flexible with the dates! 🏍️`
+            }]
+          };
+        }
+
+        const days = startDate && endDate ? calculateDays(startDate, endDate) : undefined;
+        const formattedOptions = assistant.formatOptionsForCustomer(options, days);
+        const tips = assistant.generateNegotiationTips(options);
+        
+        const response = `Hey bro! 👋 Found some solid options in ${city}! Let me break it down for you:
+
+${formattedOptions}
+
+${tips}
+
+Which one catches your eye? I can negotiate better prices or book it straight away for you! 😊`;
+
+        return {
+          content: [{
+            type: 'text',
+            text: response
+          }]
+        };
+      }
+
+      case 'negotiate_price': {
+        const { shopName, currentPrice, targetPrice, days } = request.params.arguments as any;
+        
+        if (!shopName || !currentPrice || !targetPrice || !days) {
+          throw new RentalError('All negotiation parameters are required', 'MISSING_NEGOTIATION_PARAMS');
+        }
+
+        const result = await assistant.negotiatePrice(shopName, currentPrice, targetPrice, days);
+        
+        const response = `🎯 **Negotiation Update**
+
+${result.message}
+
+💰 **Price Summary:**
+- Original: ${formatPrice(result.originalPrice)}/day
+- Final: ${formatPrice(result.finalPrice)}/day
+- Total for ${days} days: ${formatPrice(result.finalPrice * days)}
+
+${result.success ? "🎉 Deal secured!" : "💪 Still a good compromise!"} Want me to book this for you?`;
+
+        return {
+          content: [{
+            type: 'text',
+            text: response
+          }]
+        };
+      }
+
+      case 'book_rental': {
+        const { shopName, bikeModel, startDate, endDate, customerName, deliveryAddress } = request.params.arguments as any;
+        
+        if (!shopName || !bikeModel || !startDate || !endDate || !customerName) {
+          throw new RentalError('Missing required booking information', 'MISSING_BOOKING_PARAMS');
+        }
+
+        validateDateRange(startDate, endDate);
+
+        // Find the rental shop
+        const rental = RENTAL_DATABASE.find(r => r.shop === shopName);
+        if (!rental) {
+          throw new RentalError(`Shop ${shopName} not found`, 'SHOP_NOT_FOUND');
+        }
+
+        const bookingSummary = assistant.createBookingSummary(rental, bikeModel, startDate, endDate);
+        
+        // Simulate booking confirmation delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const bookingId = `VR${Date.now().toString(36).toUpperCase()}`;
+        
+        const response = `🎉 **Booking Confirmed!** 
+
+**Booking ID:** ${bookingId}
+**Customer:** ${customerName}
+**Shop:** ${bookingSummary.shop}
+**Bike:** ${bookingSummary.bike.model} (${bookingSummary.bike.engine})
+**Duration:** ${bookingSummary.duration} (${bookingSummary.startDate} to ${bookingSummary.endDate})
+**Price:** ${bookingSummary.dailyPrice} × ${bookingSummary.duration} = ${bookingSummary.totalPrice}
+**Discount:** ${bookingSummary.discount}
+
+📍 **Pickup/Delivery:**
+${deliveryAddress ? `Delivery to: ${deliveryAddress}` : `Pickup at: ${bookingSummary.address}`}
+
+📋 **Requirements:** ${bookingSummary.requirements.join(', ')}
+
+📞 **Shop Contact:** ${bookingSummary.contact}
+
+✅ **Next Steps:**
+1. I've confirmed your booking with the shop
+2. They'll contact you 1 day before to confirm delivery/pickup
+3. Bring your passport and deposit
+4. Check the bike condition before accepting
+
+${bookingSummary.ag
