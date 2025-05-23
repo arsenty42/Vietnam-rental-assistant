@@ -1,0 +1,296 @@
+# Dockerfile
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source code
+COPY src/ ./src/
+
+# Build the application
+RUN npm run build
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nam -u 1001
+
+# Change ownership of the app directory
+RUN chown -R nam:nodejs /app
+USER nam
+
+# Expose port (if needed for health checks)
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "console.log('Nam is ready to help with rentals! 🏍️')" || exit 1
+
+# Start the MCP server
+CMD ["npm", "start"]
+
+---
+
+# docker-compose.yml
+version: '3.8'
+
+services:
+  vietnam-rental-assistant:
+    build: .
+    container_name: nam-rental-helper
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - rental-network
+    labels:
+      - "description=Vietnam Rental Assistant MCP Server"
+      - "maintainer=Nam Nguyen <nam@rentalhelper.vn>"
+      - "version=1.0.0"
+
+  # Optional: Add a simple web dashboard
+  rental-dashboard:
+    build: ./dashboard
+    container_name: rental-dashboard
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_MCP_SERVER=vietnam-rental-assistant
+    depends_on:
+      - vietnam-rental-assistant
+    networks:
+      - rental-network
+
+networks:
+  rental-network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local
+
+---
+
+# deploy.sh
+#!/bin/bash
+
+set -e
+
+echo "🏍️ Deploying Vietnam Rental Assistant MCP Server..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if Node.js is installed
+if ! command -v node &> /dev/null; then
+    print_error "Node.js is not installed. Please install Node.js 18 or higher."
+    exit 1
+fi
+
+# Check Node.js version
+NODE_VERSION=$(node -v | cut -d 'v' -f 2 | cut -d '.' -f 1)
+if [ "$NODE_VERSION" -lt 18 ]; then
+    print_error "Node.js version 18 or higher is required. Current version: $(node -v)"
+    exit 1
+fi
+
+print_status "Node.js version check passed: $(node -v)"
+
+# Install dependencies
+print_status "Installing dependencies..."
+npm ci
+
+# Build the project
+print_status "Building TypeScript project..."
+npm run build
+
+# Run tests if available
+if [ -f "package.json" ] && grep -q "\"test\"" package.json; then
+    print_status "Running tests..."
+    npm test
+fi
+
+# Check if MCP SDK is properly installed
+print_status "Verifying MCP SDK installation..."
+if [ ! -d "node_modules/@modelcontextprotocol" ]; then
+    print_error "MCP SDK not found. Please check your package.json dependencies."
+    exit 1
+fi
+
+# Create necessary directories
+print_status "Creating necessary directories..."
+mkdir -p logs
+mkdir -p dist
+
+# Set up environment
+print_status "Setting up environment..."
+if [ ! -f ".env" ]; then
+    cat > .env << EOF
+NODE_ENV=production
+LOG_LEVEL=info
+TZ=Asia/Ho_Chi_Minh
+MCP_SERVER_NAME=vietnam-rental-assistant
+AGENT_NAME=Nam Nguyen
+AGENT_USERNAME=@nam_rentalhelper
+EOF
+    print_status "Created .env file with default settings"
+fi
+
+# Test the MCP server
+print_status "Testing MCP server startup..."
+timeout 10s npm start &
+SERVER_PID=$!
+sleep 5
+
+if ps -p $SERVER_PID > /dev/null; then
+    print_status "MCP server started successfully!"
+    kill $SERVER_PID
+else
+    print_error "MCP server failed to start"
+    exit 1
+fi
+
+# Generate example Claude Desktop config
+print_status "Generating Claude Desktop configuration..."
+cat > claude_desktop_config.json << EOF
+{
+  "mcpServers": {
+    "vietnam-rental": {
+      "command": "node",
+      "args": ["$(pwd)/dist/index.js"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}
+EOF
+
+print_status "Claude Desktop config saved to: claude_desktop_config.json"
+
+# Create systemd service file (for Linux deployment)
+if command -v systemctl &> /dev/null; then
+    print_status "Creating systemd service file..."
+    cat > vietnam-rental-assistant.service << EOF
+[Unit]
+Description=Vietnam Rental Assistant MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$(pwd)
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=LOG_LEVEL=info
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    print_warning "Systemd service file created: vietnam-rental-assistant.service"
+    print_warning "To install: sudo cp vietnam-rental-assistant.service /etc/systemd/system/"
+    print_warning "To enable: sudo systemctl enable vietnam-rental-assistant"
+    print_warning "To start: sudo systemctl start vietnam-rental-assistant"
+fi
+
+# Docker deployment option
+if command -v docker &> /dev/null; then
+    print_status "Docker is available. You can also deploy using:"
+    echo "  docker build -t vietnam-rental-assistant ."
+    echo "  docker run -d --name nam-helper vietnam-rental-assistant"
+    echo "  or use: docker-compose up -d"
+fi
+
+# Final instructions
+print_status "🎉 Deployment completed successfully!"
+echo ""
+echo "📋 Next steps:"
+echo "1. Copy claude_desktop_config.json to your Claude Desktop config directory"
+echo "2. Restart Claude Desktop to load the MCP server"
+echo "3. Test by asking: 'Help me find a scooter rental in Da Nang'"
+echo ""
+echo "🔧 To start the server manually:"
+echo "   npm start"
+echo ""
+echo "📱 For production deployment:"
+echo "   - Use PM2: pm2 start dist/index.js --name vietnam-rental"
+echo "   - Or systemd service (Linux)"
+echo "   - Or Docker container"
+echo ""
+echo "🏍️ Nam Nguyen is ready to help foreigners find great bike rentals!"
+
+# Create a quick test script
+cat > test-server.js << 'EOF'
+import { spawn } from 'child_process';
+
+console.log('🧪 Testing Vietnam Rental Assistant MCP Server...\n');
+
+const server = spawn('node', ['dist/index.js'], {
+  stdio: ['pipe', 'pipe', 'pipe']
+});
+
+server.stdout.on('data', (data) => {
+  console.log('✅ Server output:', data.toString().trim());
+});
+
+server.stderr.on('data', (data) => {
+  const output = data.toString().trim();
+  if (output.includes('running on stdio')) {
+    console.log('✅ Server started successfully!');
+    console.log('✅ MCP server is ready to receive tool calls');
+    server.kill();
+    process.exit(0);
+  } else {
+    console.log('ℹ️  Server info:', output);
+  }
+});
+
+server.on('close', (code) => {
+  if (code === 0) {
+    console.log('\n🎉 Test completed successfully!');
+  } else {
+    console.log(`\n❌ Server exited with code ${code}`);
+    process.exit(1);
+  }
+});
+
+// Timeout after 10 seconds
+setTimeout(() => {
+  console.log('\n⏰ Test timeout - killing server');
+  server.kill();
+  process.exit(1);
+}, 10000);
+EOF
+
+print_status "Quick test script created: test-server.js"
+print_status "Run with: node test-server.js"
