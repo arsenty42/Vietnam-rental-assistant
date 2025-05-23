@@ -1,0 +1,238 @@
+{
+  "mcpServers": {
+    "vietnam-rental-assistant": {
+      "command": "node",
+      "args": ["./dist/index.js"],
+      "description": "Vietnam motorbike rental assistant - Nam Nguyen helps find and book rentals",
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  },
+  "tools": {
+    "vietnam-rental-assistant": {
+      "search_rentals": {
+        "description": "Search for motorbike/scooter rentals in Vietnamese cities (Da Nang, Ho Chi Minh City, Hanoi)",
+        "example": {
+          "city": "Da Nang",
+          "startDate": "2024-06-15",
+          "endDate": "2024-06-20",
+          "budget": "150000",
+          "bikeType": "scooter"
+        }
+      },
+      "negotiate_price": {
+        "description": "Negotiate better prices with rental shops using local connections",
+        "example": {
+          "shopName": "Thanh Xe Tốt",
+          "currentPrice": "180000",
+          "targetPrice": "150000",
+          "days": 5
+        }
+      },
+      "book_rental": {
+        "description": "Complete booking process with vendor coordination",
+        "example": {
+          "shopName": "Thanh Xe Tốt",
+          "bikeModel": "Honda Vision",
+          "startDate": "2024-06-15",
+          "endDate": "2024-06-20",
+          "customerName": "John Smith",
+          "deliveryAddress": "Fusion Suites Da Nang Beach"
+        }
+      },
+      "get_local_tips": {
+        "description": "Get authentic local advice for riding in Vietnam",
+        "example": {
+          "city": "Da Nang",
+          "topic": "traffic"
+        }
+      }
+    }
+  },
+  "prompts": {
+    "vietnam_rental_context": {
+      "name": "Vietnam Rental Assistant Context",
+      "description": "Sets up context for interacting with Nam Nguyen, the Vietnamese rental assistant",
+      "template": "You are now talking to Nam Nguyen (@nam_rentalhelper), a friendly local Vietnamese guy who helps foreigners rent motorbikes and scooters in Vietnam. Nam knows all the best rental shops in Da Nang, Ho Chi Minh City, and Hanoi. He speaks casually like a local friend, negotiates prices in Vietnamese with shop owners, and provides authentic local advice about traffic, parking, and riding safely in Vietnam. Nam's personality is helpful, trustworthy, and has that local insider knowledge that only comes from living in Vietnam."
+    }
+  },
+  "workflows": {
+    "complete_rental_flow": {
+      "name": "Complete Rental Booking Flow",
+      "description": "End-to-end rental process from search to booking",
+      "steps": [
+        {
+          "step": "gather_requirements",
+          "description": "Ask customer about city, dates, budget, bike type preferences"
+        },
+        {
+          "step": "search_options",
+          "tool": "search_rentals",
+          "description": "Find available rentals matching customer requirements"
+        },
+        {
+          "step": "present_options",
+          "description": "Show customer the available bikes with Nam's local recommendations"
+        },
+        {
+          "step": "negotiate_if_needed",
+          "tool": "negotiate_price",
+          "description": "Try to get better prices if customer wants to negotiate"
+        },
+        {
+          "step": "finalize_booking",
+          "tool": "book_rental",
+          "description": "Complete the booking with chosen rental shop"
+        },
+        {
+          "step": "provide_local_tips",
+          "tool": "get_local_tips",
+          "description": "Give relevant local advice for safe riding"
+        }
+      ]
+    },
+    "quick_price_check": {
+      "name": "Quick Price Comparison",
+      "description": "Fast price check across multiple shops",
+      "steps": [
+        {
+          "step": "search_all_cities",
+          "tools": ["search_rentals"],
+          "parameters": {
+            "cities": ["Da Nang", "Ho Chi Minh City", "Hanoi"]
+          }
+        },
+        {
+          "step": "compare_prices",
+          "description": "Present price comparison with Nam's recommendations"
+        }
+      ]
+    }
+  },
+  "integration_examples": {
+    "claude_desktop": {
+      "description": "Configuration for Claude Desktop application",
+      "config_location": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "setup": {
+        "mcpServers": {
+          "vietnam-rental": {
+            "command": "node",
+            "args": ["/path/to/vietnam-rental-assistant/dist/index.js"],
+            "env": {
+              "NODE_ENV": "production"
+            }
+          }
+        }
+      }
+    },
+    "api_integration": {
+      "description": "Integration with custom applications",
+      "example_code": {
+        "language": "javascript",
+        "code": "// Connect to MCP server\nconst client = new Client(...);\nawait client.connect(transport);\n\n// Search rentals\nconst result = await client.callTool({\n  name: 'search_rentals',\n  arguments: { city: 'Da Nang', budget: '150000' }\n});"
+      }
+    },
+    "webhook_integration": {
+      "description": "Integration with messaging platforms",
+      "platforms": [
+        {
+          "name": "WhatsApp Business API",
+          "webhook_endpoint": "/webhook/whatsapp",
+          "message_format": "text"
+        },
+        {
+          "name": "Telegram Bot API",
+          "webhook_endpoint": "/webhook/telegram",
+          "message_format": "markdown"
+        },
+        {
+          "name": "Zalo API",
+          "webhook_endpoint": "/webhook/zalo",
+          "message_format": "vietnamese_text"
+        }
+      ]
+    }
+  },
+  "testing": {
+    "test_scenarios": [
+      {
+        "name": "budget_backpacker",
+        "description": "Low budget, long duration rental",
+        "parameters": {
+          "city": "Hanoi",
+          "budget": "100000",
+          "days": 14,
+          "bikeType": "scooter"
+        }
+      },
+      {
+        "name": "luxury_tourist",
+        "description": "High budget, premium experience",
+        "parameters": {
+          "city": "Da Nang",
+          "budget": "300000",
+          "days": 3,
+          "bikeType": "motorbike"
+        }
+      },
+      {
+        "name": "business_traveler",
+        "description": "Professional, reliable transportation",
+        "parameters": {
+          "city": "Ho Chi Minh City",
+          "budget": "200000",
+          "days": 5,
+          "bikeType": "automatic"
+        }
+      }
+    ],
+    "expected_responses": {
+      "search_rentals": "Should return formatted list with shops, bikes, prices, and Nam's recommendations",
+      "negotiate_price": "Should show negotiation attempt with realistic success/failure outcomes",
+      "book_rental": "Should provide booking confirmation with all details and next steps",
+      "get_local_tips": "Should give authentic, specific local advice for the requested city/topic"
+    }
+  },
+  "deployment": {
+    "development": {
+      "command": "npm run dev",
+      "hot_reload": true,
+      "debug_logs": true
+    },
+    "production": {
+      "command": "npm start",
+      "process_manager": "pm2",
+      "environment_variables": {
+        "NODE_ENV": "production",
+        "LOG_LEVEL": "info"
+      }
+    },
+    "docker": {
+      "image": "node:18-alpine",
+      "port": 3000,
+      "health_check": "/health"
+    }
+  },
+  "monitoring": {
+    "metrics": [
+      "rental_searches_per_hour",
+      "successful_negotiations_percentage", 
+      "booking_completion_rate",
+      "average_response_time",
+      "customer_satisfaction_score"
+    ],
+    "alerts": [
+      {
+        "metric": "response_time",
+        "threshold": "5000ms",
+        "action": "notify_admin"
+      },
+      {
+        "metric": "error_rate",
+        "threshold": "5%",
+        "action": "restart_service"
+      }
+    ]
+  }
+}
